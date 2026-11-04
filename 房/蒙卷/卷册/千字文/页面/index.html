@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="qzw-data-mode" content="live">
+  <meta name="description" content="从千字文的一句出发，读藏经阁原位书篇。">
+  <title>千字文 · 藏经阁导读</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#reading">跳到千字文正文</a>
+  <header class="masthead">
+    <a class="brand" href="./" aria-label="千字文导读首页"><span class="seal" aria-hidden="true">蒙</span>藏经阁 <span class="divider">/</span> 蒙卷</a>
+    <span class="local-mark"><i aria-hidden="true"></i><span id="data-kind">本地只读 · 逐句入书</span></span>
+  </header>
+  <main>
+    <section class="intro" aria-labelledby="title">
+      <div><p class="eyebrow">蒙学入门 · 由句及书</p><h1 id="title">千字文<span class="title-dot">。</span></h1></div>
+      <div class="intro-copy"><h2>由一句，入一书。</h2><p>从熟悉的四字出发，翻到它背后的古书。<br>导读在这里，原文仍在藏经阁。</p></div>
+    </section>
+    <nav class="doorway" aria-label="已接通的导读入口"><span class="doorway-label">先从这里读 <span aria-hidden="true">↗</span></span><div id="shortcuts"></div></nav>
+    <p id="page-status" class="status" role="status">正在读取本地馆藏索引……</p>
+    <p id="snapshot-note" class="status" hidden>此页为纯静态馆藏快照，只读本次发布内容，不在线读取本机文件；原文照录，更新须重新发布。</p>
+    <div id="page-error" class="error" role="alert" hidden></div>
+    <div class="workspace">
+      <section id="reading" class="poem-panel" aria-labelledby="poem-title">
+        <div class="section-head"><div><p class="eyebrow">原位正文</p><h2 id="poem-title">一千字，慢慢读。</h2></div><button id="filter" class="quiet-button" type="button" aria-pressed="false">只看导读</button></div>
+        <p class="reading-hint"><span class="sample-link">朱色句</span>可展开 · 其余句暂未配导读，并非缺书</p>
+        <div id="poem" class="poem" aria-label="千字文全文"></div>
+        <details class="source-detail"><summary>正文来处与读法</summary><p>原字照馆藏，阅读布局按四字句重排，不静默繁简转换。这是导读关联，不把引路说成作者唯一出处。</p><p id="poem-source" class="source-path"></p></details>
+      </section>
+      <aside id="reader" class="reader" aria-labelledby="entry-title">
+        <div class="reader-head"><span class="eyebrow">循句入阁</span><button id="return" class="quiet-button" type="button" disabled>收起 · 回原句 ↖</button></div>
+        <div id="reader-empty" class="empty-state"><span class="empty-mark" aria-hidden="true">书</span><h2>从一句开始</h2><p>点开朱色句子，读引路的话，<br>再看古书自己怎么说。</p></div>
+        <div id="entry" hidden>
+          <h2 id="entry-title" tabindex="-1"></h2>
+          <div id="entry-tags" class="tags"></div>
+          <div class="guide"><span class="small-label">后作导读</span><p id="guide"></p></div>
+          <div id="book-tabs" class="book-tabs" role="group" aria-label="选择关联书籍"></div>
+          <section id="book" hidden aria-labelledby="book-title">
+            <div class="book-heading"><div><span class="small-label">馆藏原文</span><h3 id="book-title"></h3><p id="chapter-title"></p></div><span id="book-stamp" class="book-stamp" aria-hidden="true">原位取文</span></div>
+            <p id="source-note" class="source-note"></p>
+            <div class="read-modes" role="group" aria-label="取文范围">
+              <button type="button" data-mode="excerpt" aria-pressed="true">相关段</button>
+              <button type="button" data-mode="context" aria-pressed="false">上下文</button>
+              <button type="button" data-mode="chapter" aria-pressed="false">本篇范围</button>
+              <button type="button" data-mode="book" aria-pressed="false">从书首读</button>
+            </div>
+            <p id="read-status" class="status" role="status"></p>
+            <div id="read-error" class="error" role="alert" hidden></div>
+            <pre id="original" class="original" tabindex="0" aria-label="馆藏原位文字"></pre>
+            <div id="pagination" class="pagination" hidden><button id="previous" class="quiet-button" type="button">← 前一片</button><span id="page-number"></span><button id="next" class="quiet-button" type="button">后一片 →</button></div>
+            <details class="source-detail"><summary>查看书目、版本与原位凭据</summary><dl id="metadata"></dl></details>
+          </section>
+        </div>
+        <div id="entry-error" class="error" role="alert" hidden></div>
+        <button id="reload" class="quiet-button retry" type="button" hidden>重新读取这一入口</button>
+      </aside>
+    </div>
+    <footer><span>千字文导读 · 藏经阁</span><p>一句一句，慢慢走向全书。<br>原文照录，不改写古籍。<br>私人开发，暂不开放授权；古籍权利另计。</p><a href="#title">回到卷首 ↑</a></footer>
+  </main>
+  <noscript><p class="error">本阅读页需要启用 JavaScript 来读取馆藏快照或本机预览数据；网页不会改写古籍源文件。</p></noscript>
+</body>
+</html>

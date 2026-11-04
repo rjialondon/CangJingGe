@@ -1,0 +1,67 @@
+name: 千字文核验与页面发布
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-build:
+    name: 核验与静态构建
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: 取本仓源码
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Python 标准库环境
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: 登记馆藏与精确锚核验
+        run: python3 -B 房/蒙卷/卷册/千字文/核验.py
+      - name: 核验器微夹具
+        run: python3 -B 房/蒙卷/卷册/千字文/核验.py --自检
+      - name: 本机 HTTP 微夹具
+        run: python3 -B 房/蒙卷/卷册/千字文/服务自检.py
+      - name: 静态构建微夹具
+        run: python3 -B 房/蒙卷/卷册/千字文/静态自检.py
+      - name: 检查页面脚本语法
+        run: node --check 房/蒙卷/卷册/千字文/页面/app.js
+      - name: 仅构建登记内容到临时目录
+        run: |
+          mkdir "$RUNNER_TEMP/qzw-pages"
+          python3 -B 房/蒙卷/卷册/千字文/静态构建.py --输出 "$RUNNER_TEMP/qzw-pages"
+      - name: 上传页面产物
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/qzw-pages
+          retention-days: 1
+          include-hidden-files: true
+
+  deploy:
+    name: 发布 GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: verify-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: 发布已核验产物
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
