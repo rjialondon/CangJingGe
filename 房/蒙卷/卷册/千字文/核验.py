@@ -14,6 +14,9 @@ import subprocess
 import tempfile
 
 
+内部经名 = frozenset(("周易本义-道观正本.md", "周易本义·道观正本.md"))
+
+
 class 核验问题(ValueError):
     pass
 
@@ -59,6 +62,8 @@ def 馆藏路径(阁根, 相对):
     except (OSError, RuntimeError) as 问题:
         raise 核验问题(f"馆藏路径无法解析：{相对}：{问题}") from 问题
     须(真路.is_relative_to(阁根), f"路径或软链越出馆藏：{相对}")
+    须(路.name not in 内部经名 and 真路.name not in 内部经名,
+       f"道观内部经不可绑定为外部原书：{相对}")
     须(真路.is_file(), f"馆藏不存在或不是文件：{相对}")
     return 真路
 
@@ -190,7 +195,7 @@ def 展示(索引, 取文表, 标识):
 
 
 def 自检():
-    """只造三份微型源文与一份索引；所有夹具、搬迁副本均只入临时目录。"""
+    """只造微型源文与一份索引；所有夹具、搬迁副本均只入临时目录。"""
     已验 = []
     with tempfile.TemporaryDirectory(prefix="千字文核验-") as 临时名:
         临时 = Path(临时名).resolve()
@@ -245,6 +250,17 @@ def 自检():
         病例("目录软链越界", lambda 本: 本["正文"].update(路径="外目录/外件.md"), "越出")
         (阁根 / "馆内链.md").symlink_to("甲.md")
         须(读源(阁根, "馆内链.md") == 读源(阁根, "甲.md"), "馆内软链应仍归阁根")
+        for 序, 内部名 in enumerate(sorted(内部经名)):
+            (阁根 / 内部名).write_bytes(甲书.encode("utf-8"))
+            别名 = f"内部别名{序}.md"
+            (阁根 / 别名).symlink_to(内部名)
+            for 路名 in (内部名, 别名):
+                病例("拒内部经" + 路名, lambda 本: 本["书目"]["甲"].update(路径=路名), "道观内部经")
+        (阁根 / "周易本义.md").write_bytes(甲书.encode("utf-8"))
+        外本 = copy.deepcopy(索引)
+        外本["书目"]["甲"]["路径"] = "周易本义.md"
+        须(核验(外本, 阁根) == 核验(索引, 阁根), "外部原书周易本义.md不应被误拒")
+        已验.append("外部原书周易本义不误伤")
         根链 = 临时 / "阁根别名"
         根链.symlink_to(阁根, target_is_directory=True)
         须(核验(索引, 根链) == 核验(索引, 阁根), "根本身须resolve后作信任根")
@@ -262,6 +278,19 @@ def 自检():
         (项目 / "关联索引.json").write_text(json.dumps(索引, ensure_ascii=False), encoding="utf-8")
         副本 = 项目 / "核验.py"
         副本.write_bytes(Path(__file__).read_bytes())
+        for 路名 in (*sorted(内部经名), "内部别名0.md", "内部别名1.md", "周易本义.md"):
+            本 = copy.deepcopy(索引)
+            本["书目"]["甲"]["路径"] = 路名
+            (项目 / "关联索引.json").write_text(json.dumps(本, ensure_ascii=False), encoding="utf-8")
+            运行 = subprocess.run([sys.executable, "-B", str(副本)], cwd=临时,
+                                  capture_output=True, text=True, timeout=15)
+            if 路名 == "周易本义.md":
+                须(运行.returncode == 0, "命令行误拒外部原书：" + 运行.stderr)
+            else:
+                须(运行.returncode == 1 and "道观内部经" in 运行.stderr,
+                   "命令行未明确拒绝内部经：" + 路名)
+        (项目 / "关联索引.json").write_text(json.dumps(索引, ensure_ascii=False), encoding="utf-8")
+        已验 += ["命令行拒内部经及馆内别名", "命令行外部原书不误伤"]
         for 错位 in (临时 / "核验.py", 临时 / "藏经阁/蒙卷/千字文/核验.py",
                       临时 / "房/蒙卷/卷册/其他项目/核验.py"):
             try:

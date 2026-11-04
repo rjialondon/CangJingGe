@@ -209,6 +209,30 @@ class 服务检查(unittest.TestCase):
                 self.写索引(本)
                 self.拒绝(422, "/api/entry", {"id": "qzw-4"})
 
+    def test_内部经及馆内别名从目录到取文均拒绝(self):
+        for 序, 内部名 in enumerate(("周易本义-道观正本.md", "周易本义·道观正本.md")):
+            self.写源(内部名, self.甲文)
+            别名 = f"内部别名{序}.md"
+            (self.阁根 / 别名).symlink_to(内部名)
+            for 路 in (内部名, 别名):
+                with self.subTest(路=路):
+                    本 = copy.deepcopy(self.索引)
+                    本["书目"]["甲"]["路径"] = 路
+                    self.写索引(本)
+                    for 接口, 参数 in (("/api/catalog", None),
+                                      ("/api/entry", {"id": "qzw-4"}),
+                                      ("/api/read", {"id": "甲段", "mode": "book"})):
+                        内容 = self.拒绝(422, 接口, 参数)
+                        self.assertIn("道观内部经", 内容["错误"])
+
+    def test_外部原书周易本义不误伤(self):
+        self.写源("周易本义.md", self.甲文)
+        self.索引["书目"]["甲"]["路径"] = "周易本义.md"
+        self.写索引()
+        self.成功("/api/catalog")
+        self.成功("/api/entry", {"id": "qzw-4"})
+        self.assertEqual(self.成功("/api/read", {"id": "甲段", "mode": "book"})["原文"], self.甲文[:6000])
+
     def test_馆内软链可读与根软链信任(self):
         (self.阁根 / "馆内链.md").symlink_to("甲.md")
         本 = copy.deepcopy(self.索引)

@@ -166,6 +166,31 @@ class 静态检查(unittest.TestCase):
                     构.构建(self.项目, 输出)
                 self.assertEqual(list(输出.iterdir()), [])
 
+    def test_拒内部经及馆内别名且输出仍空(self):
+        for 序, 内部名 in enumerate(("周易本义-道观正本.md", "周易本义·道观正本.md")):
+            (self.阁根 / 内部名).write_bytes(self.甲文.encode("utf-8"))
+            别名 = f"内部别名{序}.md"
+            (self.阁根 / 别名).symlink_to(内部名)
+            for 路 in (内部名, 别名):
+                with self.subTest(路=路):
+                    本 = copy.deepcopy(self.索引)
+                    本["书目"]["甲"]["路径"] = 路
+                    self.写索引(本)
+                    输出 = self.新输出()
+                    with self.assertRaisesRegex(构.预览.核.核验问题, "道观内部经"):
+                        构.构建(self.项目, 输出)
+                    self.assertEqual(list(输出.iterdir()), [])
+
+    def test_外部原书周易本义仍可构建(self):
+        (self.阁根 / "周易本义.md").write_bytes(self.甲文.encode("utf-8"))
+        self.索引["书目"]["甲"]["路径"] = "周易本义.md"
+        self.写索引()
+        输出 = self.新输出()
+        清单 = 构.构建(self.项目, 输出)
+        页 = self.读JSON(输出, 清单["续读"]["甲段"]["book"]["0"])
+        self.assertEqual(页["原文"], self.甲文[:6000])
+        self.assertEqual(页["路径"], "周易本义.md")
+
     def test_拒危险非空相对输出且不触动原件(self):
         空 = self.新输出()
         非空 = self.新输出()
