@@ -133,6 +133,22 @@ class 静态检查(unittest.TestCase):
         self.assertFalse((输出 / "fonts/未登记字体.woff2").exists())
         self.assertFalse(list(self.阁根.rglob("__pycache__")))
 
+    def test_分读随静态入口保留并拒错位(self):
+        词 = [{"起字": 1, "止字": 2, "原文": "𠀀天", "说明": "两书共读", "关联": ["甲段", "乙篇"]},
+              {"起字": 3, "止字": 4, "原文": "地玄", "说明": "待寻", "关联": []}]
+        self.索引["入口"][0]["分读"] = 词
+        self.写索引()
+        输出 = self.新输出()
+        清单 = 构.构建(self.项目, 输出)
+        self.assertEqual(self.读JSON(输出, 清单["入口"]["qzw-4"])["入口"]["分读"], 词)
+        self.assertEqual(self.读JSON(输出, 清单["目录"])["入口"][0]["分读"], 词)
+        词[1]["起字"] = 2
+        self.写索引()
+        输出 = self.新输出()
+        with self.assertRaises(ValueError):
+            构.构建(self.项目, 输出)
+        self.assertEqual(list(输出.iterdir()), [])
+
     def test_每本书只预载一次(self):
         原读, 读过 = 构.预览.核.读源, []
         def 记读(根, 路):

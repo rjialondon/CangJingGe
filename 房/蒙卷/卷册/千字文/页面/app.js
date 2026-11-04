@@ -130,6 +130,54 @@ function 标当前() {
   });
 }
 
+function 书签钮(点, 落点) {
+  const 同书多篇 = 落点.filter(另一点 => 另一点.书名 === 点.书名).length > 1;
+  const 书签名 = "《" + 点.书名 + "》" + (同书多篇 ? " · " + 点.篇名 : "");
+  const 钮 = 节点("button", 书签名, "book-tab");
+  钮.type = "button";
+  钮.dataset.point = 点.标识;
+  钮.setAttribute("aria-pressed", "false");
+  钮.setAttribute("aria-controls", "book");
+  钮.addEventListener("click", () => 选书(点));
+  return 钮;
+}
+
+function 排书签(入口, 落点) {
+  const 书签栏 = 取("book-tabs");
+  const 分组 = Array.isArray(入口.分读) && 入口.分读.length > 0;
+  书签栏.classList.toggle("grouped", 分组);
+  书签栏.setAttribute("aria-label", 分组 ? "按分读选择关联原段" : "选择关联书籍");
+  if (!分组) {
+    书签栏.replaceChildren(...落点.map(点 => 书签钮(点, 落点)));
+    return 落点[0];
+  }
+  const 点表 = new Map(落点.map(点 => [点.标识, 点]));
+  let 首点;
+  书签栏.replaceChildren(...入口.分读.map((分读, 位) => {
+    const 组点 = (Array.isArray(分读.关联) ? 分读.关联 : []).map(标识 => 点表.get(标识)).filter(Boolean);
+    if (!首点 && 组点.length) 首点 = 组点[0];
+    const 组 = 节点("div", undefined, "phrase-group");
+    const 题 = 节点("h3", `${分读.原文} · ${组点.length ? "已挂钩" : "待寻原段"}`, "phrase-title");
+    题.id = "phrase-title-" + 位;
+    组.setAttribute("role", "group");
+    组.setAttribute("aria-labelledby", 题.id);
+    组.append(题);
+    if (分读.说明) {
+      const 说明 = 节点("p", 分读.说明, "phrase-note");
+      说明.id = "phrase-note-" + 位;
+      组.setAttribute("aria-describedby", 说明.id);
+      组.append(说明);
+    }
+    if (组点.length) {
+      const 按钮栏 = 节点("div", undefined, "phrase-book-tabs");
+      按钮栏.append(...组点.map(点 => 书签钮(点, 落点)));
+      组.append(按钮栏);
+    }
+    return 组;
+  }));
+  return 首点;
+}
+
 async function 开入口(标识, 起钮, 跳转) {
   const 轮 = ++状态.请求号;
   ++状态.阅读号;
@@ -157,18 +205,13 @@ async function 开入口(标识, 起钮, 跳转) {
     取("entry-title").textContent = 数据.入口.句段.原文;
     取("entry-tags").replaceChildren(...数据.入口.学科.map(项 => 节点("span", 项)));
     取("guide").textContent = 数据.入口.导读;
-    取("book-tabs").replaceChildren(...数据.落点.map(点 => {
-      const 同书多篇 = 数据.落点.filter(另一点 => 另一点.书名 === 点.书名).length > 1;
-      const 书签名 = "《" + 点.书名 + "》" + (同书多篇 ? " · " + 点.篇名 : "");
-      const 钮 = 节点("button", 书签名, "book-tab");
-      钮.type = "button";
-      钮.dataset.point = 点.标识;
-      钮.addEventListener("click", () => 选书(点));
-      return 钮;
-    }));
+    const 首点 = 排书签(数据.入口, 数据.落点);
     取("entry").hidden = false;
-    if (数据.落点.length) 选书(数据.落点[0]);
-    else 报错("entry-error", "这一入口尚未接通书篇，暂不展示原文。");
+    if (首点) 选书(首点);
+    else {
+      取("read-status").textContent = "尚待接通原段";
+      报错("entry-error", "这一入口尚未接通书篇，暂不展示原文。");
+    }
     if (跳转 && window.matchMedia("(max-width: 720px)").matches) 取("entry-title").focus({preventScroll: true});
   } catch (错) {
     if (轮 !== 状态.请求号) return;

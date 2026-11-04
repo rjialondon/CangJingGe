@@ -131,6 +131,18 @@ class 服务检查(unittest.TestCase):
         self.assertEqual(内容["句"][1], "乙甲甲甲")
         self.assertEqual(内容["SHA256"], SHA(新正文.encode("utf-8")))
 
+    def test_分读原样递送及错字拒绝(self):
+        词 = [{"起字": 1, "止字": 2, "原文": "𠀀天", "说明": "原字分读", "关联": ["甲段"]},
+              {"起字": 3, "止字": 4, "原文": "地玄", "说明": "待寻", "关联": []}]
+        self.索引["入口"][0]["分读"] = 词
+        self.写索引()
+        self.assertEqual(self.成功("/api/catalog")["入口"][0]["分读"], 词)
+        self.assertEqual(self.成功("/api/entry", {"id": "qzw-4"})["入口"]["分读"], 词)
+        词[0]["原文"] = "错字"
+        self.写索引()
+        self.拒绝(422, "/api/catalog")
+        self.拒绝(422, "/api/entry", {"id": "qzw-4"})
+
     def test_原字行号与源片同快照(self):
         点 = self.成功("/api/entry", {"id": "qzw-4"})["落点"][0]
         self.assertEqual(点["原文"], "　甲书原字𠀀。  \r\n下一行。")
