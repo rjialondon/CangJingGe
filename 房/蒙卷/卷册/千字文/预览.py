@@ -164,7 +164,9 @@ def 取接口(项目, 阁根, 路径, 参数):
 
 静态路 = {"/": ("index.html", "text/html; charset=utf-8"),
           "/app.js": ("app.js", "text/javascript; charset=utf-8"),
-          "/style.css": ("style.css", "text/css; charset=utf-8")}
+          "/style.css": ("style.css", "text/css; charset=utf-8"),
+          "/fonts/qzw-rare-214dc.woff2": ("fonts/qzw-rare-214dc.woff2", "font/woff2"),
+          "/fonts/OFL.txt": ("fonts/OFL.txt", "text/plain; charset=utf-8")}
 接口参数 = {"/api/catalog": (set(), set()),
             "/api/entry": ({"id"}, {"id"}),
             "/api/read": ({"id", "mode"}, {"id", "mode", "offset", "sha"})}

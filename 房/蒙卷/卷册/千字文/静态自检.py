@@ -39,13 +39,18 @@ class 静态检查(unittest.TestCase):
             (self.阁根 / 名).write_bytes(文.encode("utf-8"))
         self.页面文 = {
             "index.html": b'<!doctype html>\r\n<meta name="qzw-data-mode" content="live">\r\n',
-            "app.js": b"'use strict';\n", "style.css": b"body { color: black; }\n"}
+            "app.js": b"'use strict';\n", "style.css": b"body { color: black; }\n",
+            # 仅验二进制原样递送，不将微夹具冒充可渲染字体。
+            "fonts/qzw-rare-214dc.woff2": b"wOF2\x00\xff\x80\r\nfixture-214dc",
+            "fonts/OFL.txt": b"SIL OPEN FONT LICENSE Version 1.1\nfixture only\n"}
         for 名, 字节 in self.页面文.items():
+            (self.页面 / 名).parent.mkdir(parents=True, exist_ok=True)
             (self.页面 / 名).write_bytes(字节)
         (self.阁根 / "未登记私纸.md").write_text("禁止公开的私纸哨兵", encoding="utf-8")
         (self.项目 / "开发纸.md").write_text("禁止公开的开发纸哨兵", encoding="utf-8")
         (self.项目 / "不应公开.py").write_text("禁止公开的代码哨兵", encoding="utf-8")
         (self.页面 / "额外资源.txt").write_text("禁止公开的页面哨兵", encoding="utf-8")
+        (self.页面 / "fonts/未登记字体.woff2").write_text("禁止公开的字体哨兵", encoding="utf-8")
         self.索引 = {"格式": 1, "路径基准": "藏经阁根目录",
             "正文": {"路径": "正文.md", "起锚": "𠀀天地玄", "止锚": "宇宙洪荒", "字数": 1000, "每句字数": 4},
             "书目": {号: {"书名": 号, "路径": f"{号}.md", "内容时代": "夹具", "版本说明": "仅为测试"} for 号 in ("甲", "乙")},
@@ -83,7 +88,8 @@ class 静态检查(unittest.TestCase):
         self.assertEqual(set(清单["入口"]), {"qzw-4", "qzw-8"})
         self.assertEqual(set(清单["续读"]), {"甲段", "乙篇"})
         self.assertEqual(self.读JSON(输出, 清单["目录"]), 构.预览.取接口(self.项目, self.阁根, "/api/catalog", {}))
-        登记路径 = {"index.html", "app.js", "style.css", ".nojekyll", "manifest.json", 清单["目录"]}
+        登记路径 = {"index.html", "app.js", "style.css", "fonts/qzw-rare-214dc.woff2",
+                    "fonts/OFL.txt", ".nojekyll", "manifest.json", 清单["目录"]}
         for 入口, 路 in 清单["入口"].items():
             self.assertRegex(路, r"^data/entry/[0-9a-f]{64}\.json$")
             登记路径.add(路)
@@ -122,8 +128,9 @@ class 静态检查(unittest.TestCase):
                 self.assertNotIn("禁止公开".encode("utf-8"), 字节)
                 self.assertNotIn(str(self.临根).encode("utf-8"), 字节)
         self.assertEqual((输出 / "index.html").read_bytes(), self.页面文["index.html"].replace(b'content="live"', b'content="static"'))
-        for 名 in ("app.js", "style.css"):
+        for 名 in ("app.js", "style.css", "fonts/qzw-rare-214dc.woff2", "fonts/OFL.txt"):
             self.assertEqual((输出 / 名).read_bytes(), self.页面文[名])
+        self.assertFalse((输出 / "fonts/未登记字体.woff2").exists())
         self.assertFalse(list(self.阁根.rglob("__pycache__")))
 
     def test_每本书只预载一次(self):
@@ -238,6 +245,46 @@ class 静态检查(unittest.TestCase):
         外索引.write_bytes((self.项目 / "关联索引.json").read_bytes())
         (self.项目 / "关联索引.json").unlink()
         (self.项目 / "关联索引.json").symlink_to(外索引)
+        with self.assertRaises(ValueError):
+            构.构建(self.项目, 输出)
+        self.assertEqual(list(输出.iterdir()), [])
+
+    def test_字体与许可证缺失在落盘前拒绝(self):
+        for 名 in ("fonts/qzw-rare-214dc.woff2", "fonts/OFL.txt"):
+            with self.subTest(名=名):
+                源 = self.页面 / 名
+                源.unlink()
+                try:
+                    输出 = self.新输出()
+                    with self.assertRaises(ValueError):
+                        构.构建(self.项目, 输出)
+                    self.assertEqual(list(输出.iterdir()), [])
+                finally:
+                    源.write_bytes(self.页面文[名])
+
+    def test_字体与许可证软链越界在落盘前拒绝(self):
+        外件 = self.临根 / "外资源.bin"
+        for 名 in ("fonts/qzw-rare-214dc.woff2", "fonts/OFL.txt"):
+            with self.subTest(名=名):
+                外件.write_bytes(self.页面文[名])
+                源 = self.页面 / 名
+                源.unlink()
+                源.symlink_to(外件)
+                try:
+                    输出 = self.新输出()
+                    with self.assertRaises(ValueError):
+                        构.构建(self.项目, 输出)
+                    self.assertEqual(list(输出.iterdir()), [])
+                finally:
+                    源.unlink()
+                    源.write_bytes(self.页面文[名])
+
+    def test_字体目录软链越界在落盘前拒绝(self):
+        外目录 = self.临根 / "外字体目录"
+        字体目录 = self.页面 / "fonts"
+        字体目录.rename(外目录)
+        字体目录.symlink_to(外目录, target_is_directory=True)
+        输出 = self.新输出()
         with self.assertRaises(ValueError):
             构.构建(self.项目, 输出)
         self.assertEqual(list(输出.iterdir()), [])

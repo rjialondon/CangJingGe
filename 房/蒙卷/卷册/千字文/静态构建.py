@@ -54,7 +54,8 @@ def 读页面(项目):
     页面 = (项目 / "页面").resolve()
     须(页面.is_relative_to(项目), "页面目录软链越出项目")
     结果 = {}
-    for 名 in ("index.html", "app.js", "style.css"):
+    # 与只读预览共用精确名单；不递归发布页面目录中的未登记文件。
+    for 名, _ in 预览.静态路.values():
         源 = (页面 / 名).resolve()
         须(源.is_relative_to(页面) and 源.is_file(), "页面文件缺失或软链越界：" + 名)
         结果[名] = 源.read_bytes()
@@ -98,6 +99,7 @@ def 构建(项目, 输出):
     (输出 / "data/entry").mkdir()
     (输出 / "data/read").mkdir()
     for 名, 字节 in 页面.items():
+        (输出 / 名).parent.mkdir(parents=True, exist_ok=True)
         with (输出 / 名).open("xb") as 文件:
             文件.write(字节)
     with (输出 / ".nojekyll").open("xb"):

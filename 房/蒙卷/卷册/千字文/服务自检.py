@@ -49,6 +49,14 @@ class 服务检查(unittest.TestCase):
             self.写源(名, 文)
         for 名, 文 in (("index.html", "<!doctype html><p>夹具</p>"), ("app.js", "'use strict';"), ("style.css", "body { color: black; }")):
             (self.页面 / 名).write_text(文, encoding="utf-8")
+        # 仅验二进制原样递送，不将微夹具冒充可渲染字体。
+        self.字体资源 = {
+            "fonts/qzw-rare-214dc.woff2": b"wOF2\x00\xff\x80\r\nfixture-214dc",
+            "fonts/OFL.txt": b"SIL OPEN FONT LICENSE Version 1.1\nfixture only\n"}
+        (self.页面 / "fonts").mkdir()
+        for 名, 字节 in self.字体资源.items():
+            (self.页面 / 名).write_bytes(字节)
+        (self.页面 / "fonts/未登记字体.woff2").write_bytes(b"not public")
         (self.页面 / "不应开放.txt").write_text("不准递出", encoding="utf-8")
         self.索引 = {"格式": 1, "路径基准": "藏经阁根目录",
             "正文": {"路径": "正文.md", "起锚": "𠀀天地玄", "止锚": "宇宙洪荒", "字数": 1000, "每句字数": 4},
@@ -284,17 +292,23 @@ class 服务检查(unittest.TestCase):
             连接.close()
 
     def test_静态有限路由类型与安全头(self):
-        for 路, 类型 in (("/", "text/html"), ("/app.js", "text/javascript"), ("/style.css", "text/css")):
+        for 路, 类型 in (("/", "text/html"), ("/app.js", "text/javascript"), ("/style.css", "text/css"),
+                         ("/fonts/qzw-rare-214dc.woff2", "font/woff2"), ("/fonts/OFL.txt", "text/plain; charset=utf-8")):
             状态, 头, 内容 = self.请求(路)
             self.assertEqual(状态, 200)
             self.assertTrue(头["Content-Type"].startswith(类型))
             self.assertTrue(内容)
+            if 路[1:] in self.字体资源:
+                self.assertEqual(内容, self.字体资源[路[1:]])
+                self.assertEqual(int(头["Content-Length"]), len(内容))
             self.assertEqual(头["Cache-Control"], "no-store")
             self.assertEqual(头["X-Content-Type-Options"], "nosniff")
             self.assertIn("default-src 'none'", 头["Content-Security-Policy"])
+            self.assertIn("font-src 'self'", 头["Content-Security-Policy"])
             self.assertNotIn("unsafe-inline", 头["Content-Security-Policy"])
             self.assertNotIn("Access-Control-Allow-Origin", 头)
-        for 路 in ("/index.html", "/页面/", "/不应开放.txt", "/关联索引.json", "/预览.py", "/../AGENTS.md", "/%2e%2e/AGENTS.md", "/api/file?path=AGENTS.md"):
+        for 路 in ("/index.html", "/页面/", "/不应开放.txt", "/关联索引.json", "/预览.py", "/../AGENTS.md", "/%2e%2e/AGENTS.md", "/api/file?path=AGENTS.md",
+                   "/fonts", "/fonts/", "/fonts/未登记字体.woff2", "/fonts/../style.css", "/fonts/%2e%2e/style.css"):
             self.拒绝(404, 路)
 
     def test_静态软链不得越界(self):
@@ -303,6 +317,39 @@ class 服务检查(unittest.TestCase):
         (self.页面 / "index.html").unlink()
         (self.页面 / "index.html").symlink_to(外件)
         self.拒绝(422, "/")
+
+    def test_字体与许可证缺失明确拒绝(self):
+        for 名, 字节 in self.字体资源.items():
+            with self.subTest(名=名):
+                源 = self.页面 / 名
+                源.unlink()
+                try:
+                    self.拒绝(404, "/" + 名)
+                finally:
+                    源.write_bytes(字节)
+
+    def test_字体与许可证软链不得越界(self):
+        外件 = self.外根 / "外资源.bin"
+        for 名, 字节 in self.字体资源.items():
+            with self.subTest(名=名):
+                外件.write_bytes(字节)
+                源 = self.页面 / 名
+                源.unlink()
+                源.symlink_to(外件)
+                try:
+                    self.拒绝(422, "/" + 名)
+                finally:
+                    源.unlink()
+                    源.write_bytes(字节)
+
+    def test_字体目录软链不得越界(self):
+        外目录 = self.外根 / "外字体目录"
+        字体目录 = self.页面 / "fonts"
+        字体目录.rename(外目录)
+        字体目录.symlink_to(外目录, target_is_directory=True)
+        for 名 in self.字体资源:
+            with self.subTest(名=名):
+                self.拒绝(422, "/" + 名)
 
     def test_损坏索引与异常源编码明报(self):
         (self.项目 / "关联索引.json").write_text('{"格式":1,"格式":1}', encoding="utf-8")
